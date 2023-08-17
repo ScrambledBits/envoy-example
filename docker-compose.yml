@@ -1,0 +1,37 @@
+services:
+  web-service-1:
+    image: web-service
+    build:
+      context: ./go-web-service
+      dockerfile: Dockerfile
+    networks:
+      - proxy
+  web-service-2:
+    image: web-service
+    build:
+      context: ./go-web-service
+      dockerfile: Dockerfile
+    networks:
+      - proxy
+  web-service-3:
+    image: web-service
+    build:
+      context: ./go-web-service
+      dockerfile: Dockerfile
+    networks:
+      - proxy
+  envoy-proxy:
+    image: envoy-proxy
+    build:
+      context: ./envoy-proxy
+      dockerfile: Dockerfile
+    volumes:
+      - ./envoy-proxy/envoy.yaml:/etc/envoy/envoy.yaml
+    ports:
+      - "10000:10000"
+      - "9901:9901"
+    networks:
+      - proxy
+
+networks:
+  proxy:
