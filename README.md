@@ -128,22 +128,22 @@ curl -v http://localhost:10000
 ```
  You should something similar to the following output:
  ```
-*   Trying ::1...
-* TCP_NODELAY set
-* Connected to localhost (::1) port 10000 (#0)
+*   Trying 127.0.0.1:10000...
+* Connected to localhost (127.0.0.1) port 10000 (#0)
 > GET / HTTP/1.1
 > Host: localhost:10000
-> User-Agent: curl/7.64.1
+> User-Agent: curl/8.1.2
 > Accept: */*
->
+> 
 < HTTP/1.1 200 OK
-< content-length: 13
+< date: Thu, 17 Aug 2023 23:07:24 GMT
+< content-length: 31
 < content-type: text/plain; charset=utf-8
-< date: Wed, 15 Sep 2021 20:00:00 GMT
+< x-envoy-upstream-service-time: 16
 < server: envoy
-<
+< 
 * Connection #0 to host localhost left intact
-Hello, World!* Closing connection 0
+Hello, World! From 5f1961e57b27
 ```
 
 ### Notes: 
