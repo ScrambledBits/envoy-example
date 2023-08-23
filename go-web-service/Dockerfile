@@ -6,6 +6,6 @@ COPY main.go .
 
 RUN go env -w GO111MODULE=auto && go build -o main .
 
-EXPOSE 8080
+EXPOSE 1337
 
 CMD ["/app/main"]
