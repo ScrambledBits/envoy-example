@@ -4,6 +4,8 @@ services:
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
+    ports:
+      - "1337:1337"
     networks:
       - proxy
   web-service-2:
@@ -11,6 +13,8 @@ services:
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
+    ports:
+      - "1337:1337"
     networks:
       - proxy
   web-service-3:
@@ -18,6 +22,8 @@ services:
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
+    ports:
+      - "1337:1337"
     networks:
       - proxy
   envoy-proxy:
