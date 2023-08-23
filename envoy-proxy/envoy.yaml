@@ -49,14 +49,14 @@ static_resources:
             address:
               socket_address:
                 address: web-service-1
-                port_value: 8080
+                port_value: 1337
         - endpoint:
             address:
               socket_address:
                 address: web-service-2
-                port_value: 8080
+                port_value: 1337
         - endpoint:
             address:
               socket_address:
                 address: web-service-3
-                port_value: 8080
+                port_value: 1337
