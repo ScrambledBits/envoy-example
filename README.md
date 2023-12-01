@@ -1,11 +1,11 @@
 # Edge Proxy Demo with Docker
 
-In this demo, we will set up Envoy as an edge proxy using Docker. Envoy will handle incoming traffic for a local Go web service also running in a Docker container.
+This demo illustrates how to set up Envoy as an edge proxy using Docker, showcasing its ability to manage traffic for microservices. This setup is a practical example of Envoy's role in a distributed system, as discussed in our presentation.
 
 ## Prerequisites
 
 - Docker installed on your local machine.
-- Go installed on your local machine.
+- Go installed on your local machine (for the web service).
 
 ## Steps
 
@@ -146,6 +146,6 @@ curl -v http://localhost:10000
 Hello, World! From 5f1961e57b27
 ```
 
-### Notes: 
-The `envoy.yaml` file is configured to route incoming traffic to the Go web service running on port `8080`. The `host.docker.internal` hostname is used to refer to the host machine from within the Docker container.
-The `curl` command is used to send a request to the Go web service via the Envoy proxy. You should see the response from the Go web service.
+### Notes:
+- The `envoy.yaml` file routes incoming traffic to the Go web service on port `8080`.
+- The `curl` command sends a request to the Go web service via the Envoy proxy, demonstrating Envoy's load balancing and routing capabilities.
