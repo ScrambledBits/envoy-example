@@ -36,11 +36,14 @@ static_resources:
                   prefix: "/"
                 route:
                   cluster: service_go
-                  timeout: 0s # Add a timeout for demonstration
-                  retry_policy: # Add a retry policy for demonstration
-                    retry_on: 5xx
+                  timeout: 30s
+                  retry_policy:
+                    retry_on: 5xx,connect-failure,refused-stream
                     num_retries: 3
-                    per_try_timeout: 2s
+                    per_try_timeout: 10s
+                    retry_host_predicate:
+                    - name: envoy.retry_host_predicates.previous_hosts
+                    host_selection_retry_max_attempts: 5
 
   clusters:
   - name: service_go
@@ -56,13 +59,46 @@ static_resources:
               socket_address:
                 address: web-service-1
                 port_value: 1337
+            health_check_config:
+              port_value: 1337
         - endpoint:
             address:
               socket_address:
                 address: web-service-2
                 port_value: 1337
+            health_check_config:
+              port_value: 1337
         - endpoint:
             address:
               socket_address:
                 address: web-service-3
                 port_value: 1337
+            health_check_config:
+              port_value: 1337
+    health_checks:
+    - timeout: 2s
+      interval: 10s
+      unhealthy_threshold: 3
+      healthy_threshold: 2
+      http_health_check:
+        path: "/health"
+        expected_statuses:
+        - start: 200
+          end: 299
+    circuit_breakers:
+      thresholds:
+      - priority: DEFAULT
+        max_connections: 1000
+        max_pending_requests: 1000
+        max_requests: 1000
+        max_retries: 3
+    outlier_detection:
+      consecutive_5xx: 10
+      interval: 30s
+      base_ejection_time: 30s
+      max_ejection_percent: 30
+      enforcing_consecutive_5xx: 80
+      # Less strict configuration to handle transient failures gracefully
+      # - 10 consecutive errors before ejection (was 5)
+      # - Max 30% of hosts can be ejected (was 50%)
+      # - 80% enforcement allows occasional false positives (was 100%)
