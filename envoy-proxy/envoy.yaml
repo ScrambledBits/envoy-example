@@ -93,8 +93,12 @@ static_resources:
         max_requests: 1000
         max_retries: 3
     outlier_detection:
-      consecutive_5xx: 5
+      consecutive_5xx: 10
       interval: 30s
       base_ejection_time: 30s
-      max_ejection_percent: 50
-      enforcing_consecutive_5xx: 100
+      max_ejection_percent: 30
+      enforcing_consecutive_5xx: 80
+      # Less strict configuration to handle transient failures gracefully
+      # - 10 consecutive errors before ejection (was 5)
+      # - Max 30% of hosts can be ejected (was 50%)
+      # - 80% enforcement allows occasional false positives (was 100%)

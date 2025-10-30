@@ -148,12 +148,56 @@ func handleReady(logger *Logger, health *HealthStatus, config *Config) http.Hand
     }
 }
 
-// loggingMiddleware logs all incoming requests
+// responseWriter wraps http.ResponseWriter to capture status code
+type responseWriter struct {
+    http.ResponseWriter
+    statusCode int
+    written    bool
+}
+
+// newResponseWriter creates a new responseWriter
+func newResponseWriter(w http.ResponseWriter) *responseWriter {
+    // Default status code is 200
+    return &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+}
+
+// WriteHeader captures the status code and calls the underlying WriteHeader
+func (rw *responseWriter) WriteHeader(code int) {
+    if !rw.written {
+        rw.statusCode = code
+        rw.written = true
+        rw.ResponseWriter.WriteHeader(code)
+    }
+}
+
+// Write ensures WriteHeader is called if it hasn't been already
+func (rw *responseWriter) Write(b []byte) (int, error) {
+    if !rw.written {
+        rw.WriteHeader(http.StatusOK)
+    }
+    return rw.ResponseWriter.Write(b)
+}
+
+// loggingMiddleware logs all incoming requests with status codes and duration
 func loggingMiddleware(logger *Logger, next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         start := time.Now()
-        next.ServeHTTP(w, r)
-        logger.Info("%s %s - %v", r.Method, r.URL.Path, time.Since(start))
+
+        // Wrap the response writer to capture status code
+        wrapped := newResponseWriter(w)
+
+        // Call the next handler
+        next.ServeHTTP(wrapped, r)
+
+        // Log with status code and duration
+        duration := time.Since(start)
+        logger.Info("%s %s - Status: %d - Duration: %v - RemoteAddr: %s",
+            r.Method,
+            r.URL.Path,
+            wrapped.statusCode,
+            duration,
+            r.RemoteAddr,
+        )
     })
 }
 

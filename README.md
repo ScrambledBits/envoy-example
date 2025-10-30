@@ -107,8 +107,10 @@ sequenceDiagram
     Note over E,W2: W2 Removed from Load Balancer
 
     rect rgb(255, 200, 200)
-        Note over W2: Service Ejected<br/>No Traffic Routed
+        Note over W2: Service Ejected<br/>No Traffic Routed<br/>(Outlier Detection)
     end
+
+    Note over E: Wait 30s base ejection time
 
     loop Health Recovery
         E->>W2: GET /health
@@ -121,7 +123,7 @@ sequenceDiagram
     end
 
     rect rgb(200, 255, 200)
-        Note over W2: Service Restored<br/>Traffic Resumed
+        Note over W2: Service Restored<br/>Traffic Resumed<br/>(Re-added to Pool)
     end
 ```
 
@@ -130,9 +132,9 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> Closed
-    Closed --> Open: 5 consecutive 5xx errors
+    Closed --> Open: 10 consecutive 5xx errors (80% enforced)
     Open --> HalfOpen: After 30s (base ejection time)
-    HalfOpen --> Closed: 2 successful requests
+    HalfOpen --> Closed: 2 successful health checks
     HalfOpen --> Open: Any failure
     Open --> [*]: Max ejection time reached
 
@@ -140,6 +142,7 @@ stateDiagram-v2
         Normal Operation
         - All requests pass through
         - Tracking error rate
+        - Max 30% hosts can be ejected
     end note
 
     note right of Open
@@ -153,6 +156,7 @@ stateDiagram-v2
         Testing Recovery
         - Limited requests allowed
         - Checking if service recovered
+        - Gradual traffic restoration
     end note
 ```
 
@@ -377,7 +381,10 @@ Key features configured in `envoy-proxy/envoy.yaml`:
 - **Retries**: Up to 3 retries on 5xx errors and connection failures
 - **Health Checks**: Every 10s with 3 unhealthy threshold
 - **Circuit Breakers**: 1000 max connections, 3 max retries
-- **Outlier Detection**: Ejects hosts after 5 consecutive 5xx errors
+- **Outlier Detection**: Balanced configuration for production reliability
+  - Ejects hosts after 10 consecutive 5xx errors (80% enforced)
+  - Maximum 30% of hosts can be ejected
+  - 30s base ejection time with gradual recovery
 
 #### Retry and Timeout Configuration
 
