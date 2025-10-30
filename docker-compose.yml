@@ -4,28 +4,69 @@ services:
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
-    ports:
-      - "1337:1337"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:1337/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
   web-service-2:
     image: web-service
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
-    ports:
-      - "1337:1337"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:1337/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
   web-service-3:
     image: web-service
     build:
       context: ./go-web-service
       dockerfile: Dockerfile
-    ports:
-      - "1337:1337"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:1337/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
   envoy-proxy:
     image: envoy-proxy
     build:
@@ -38,6 +79,28 @@ services:
       - "9901:9901"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9901/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      web-service-1:
+        condition: service_healthy
+      web-service-2:
+        condition: service_healthy
+      web-service-3:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
 networks:
   proxy:

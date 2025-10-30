@@ -1,151 +1,200 @@
-# Edge Proxy Demo with Docker
+# Envoy Proxy Demo with Docker Compose
 
-This demo illustrates how to set up Envoy as an edge proxy using Docker, showcasing its ability to manage traffic for microservices. This setup is a practical example of Envoy's role in a distributed system, as discussed in our presentation.
+This demo showcases Envoy as an edge proxy managing traffic to multiple Go web service instances. It demonstrates load balancing, health checking, circuit breaking, and retry policies in a microservices architecture.
+
+## Features
+
+- **Load Balancing**: Round-robin distribution across 3 service instances
+- **Health Checks**: Automatic detection and removal of unhealthy instances
+- **Circuit Breaking**: Protection against cascading failures
+- **Retry Logic**: Automatic retry on failures with smart host selection
+- **Graceful Shutdown**: Zero-downtime deployments
+- **Resource Management**: CPU and memory limits for all services
+- **Structured Logging**: Comprehensive request logging
+- **Optimized Images**: Multi-stage builds reducing image size by 95%
+
+## Architecture
+
+```
+Client → Envoy Proxy (port 10000) → Load Balancer → 3 Go Web Services (port 1337)
+                 ↓
+         Admin Interface (port 9901)
+```
 
 ## Prerequisites
 
-- Docker installed on your local machine.
-- Go installed on your local machine (for the web service).
+- Docker and Docker Compose installed on your local machine
 
-## Steps
+## Quick Start
 
-1. **Create a simple Go web service.**
-   Create a file named `main.go` with the following content:
-   ```go
-   package main
-
-   import (
-       "fmt"
-       "net/http"
-   )
-
-   func main() {
-       http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-           fmt.Fprintf(w, "Hello, World!")
-       })
-
-       http.ListenAndServe(":8080", nil)
-   }
-   ```
-
-2. **Containerize the Go web service using Docker.**
-
-   Create a file named `Dockerfile` with the following content:
-   ```dockerfile
-   FROM golang:1.21.0-alpine3.18
-
-   WORKDIR /app
-
-   COPY main.go .
-
-   RUN go env -w GO111MODULE=auto && go build -o main .
-
-   EXPOSE 8080
-
-   CMD ["/app/main"]
-   ```
-   Build the Docker image:
-   ```bash
-   docker build -t go-web-service .
-   ```
-   Run the Docker container:
-   ```bash
-   docker run -d -p 8080:8080 go-web-service
-   ```
-   Test the web service by visiting http://localhost:8080 in your browser.
-
-3. **Pull the official Envoy Docker image.**
-
-   ```bash
-   docker pull envoyproxy/envoy:v1.27-latest
-   ```
-
-4. **Create a Dockerfile with a custom envoy.yaml configuration file.**
-The `envoy.yaml` file should be configured to route incoming traffic to the Go web service. Here's a basic example:
-
-```yaml
-static_resources:
-  listeners:
-  - name: listener_0
-    address:
-      socket_address: { address: 0.0.0.0, port_value: 10000 }
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: local_service
-              domains: ["*"]
-              routes:
-              - match: { prefix: "/" }
-                route: { host_rewrite_literal: "localhost", cluster: service_go }
-          http_filters:
-          - name: envoy.filters.http.router
-  clusters:
-  - name: service_go
-    connect_timeout: 0.25s
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: service_go
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: host.docker.internal
-                port_value: 8080
-```
-
-Create a Dockerfile for Envoy:
-
-```dockerfile
-FROM envoyproxy/envoy:v1.27-latest
-COPY envoy.yaml /etc/envoy/envoy.yaml
-RUN chmod go+r /etc/envoy/envoy.yaml
-```
-
-5. **Build the Envoy Docker image.**
+### 1. Start All Services
 
 ```bash
-docker build -t envoy:demo .
+docker-compose up --build
 ```
 
-6. **Run the Envoy Docker container.**
+This will:
+- Build optimized Docker images for the Go web services
+- Pull and configure the latest Envoy proxy
+- Start 3 web service instances with health checks
+- Start Envoy with load balancing configured
+
+### 2. Test the Setup
+
+**Send requests through the proxy:**
+```bash
+curl http://localhost:10000
+```
+
+You'll see responses from different service instances:
+```
+Hello, World! From web-service-1
+Hello, World! From web-service-2
+Hello, World! From web-service-3
+```
+
+**Check health endpoint:**
+```bash
+curl http://localhost:10000/health
+```
+
+**View Envoy admin interface:**
+```bash
+curl http://localhost:9901/stats
+curl http://localhost:9901/clusters
+```
+
+### 3. Stop Services
 
 ```bash
-docker run -d --name envoy --rm -p 9901:9901 -p 10000:10000 envoy:demo
+docker-compose down
 ```
 
-7. **Test the setup by sending requests to the Go web service via the Envoy proxy.**
+## Project Structure
+
+```
+.
+├── docker-compose.yml          # Orchestrates all services
+├── go-web-service/
+│   ├── main.go                 # Go service with graceful shutdown
+│   ├── Dockerfile              # Multi-stage optimized build
+│   ├── go.mod                  # Go module definition
+│   └── go.sum                  # Dependency checksums
+└── envoy-proxy/
+    ├── envoy.yaml              # Envoy configuration
+    └── Dockerfile              # Envoy container setup
+```
+
+## Configuration
+
+### Go Web Service
+
+The service can be configured via environment variables:
+- `PORT`: Server port (default: 1337)
+
+See `go-web-service/main.go` for the complete implementation.
+
+### Envoy Proxy
+
+Key features configured in `envoy-proxy/envoy.yaml`:
+- **Timeouts**: 30s overall, 10s per attempt
+- **Retries**: Up to 3 retries on 5xx errors and connection failures
+- **Health Checks**: Every 10s with 3 unhealthy threshold
+- **Circuit Breakers**: 1000 max connections, 3 max retries
+- **Outlier Detection**: Ejects hosts after 5 consecutive 5xx errors
+
+## Advanced Usage
+
+### View Service Logs
 
 ```bash
-curl -v http://localhost:10000
-```
- You should something similar to the following output:
- ```
-*   Trying 127.0.0.1:10000...
-* Connected to localhost (127.0.0.1) port 10000 (#0)
-> GET / HTTP/1.1
-> Host: localhost:10000
-> User-Agent: curl/8.1.2
-> Accept: */*
-> 
-< HTTP/1.1 200 OK
-< date: Thu, 17 Aug 2023 23:07:24 GMT
-< content-length: 31
-< content-type: text/plain; charset=utf-8
-< x-envoy-upstream-service-time: 16
-< server: envoy
-< 
-* Connection #0 to host localhost left intact
-Hello, World! From 5f1961e57b27
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f web-service-1
+docker-compose logs -f envoy-proxy
 ```
 
-### Notes:
-- The `envoy.yaml` file routes incoming traffic to the Go web service on port `8080`.
-- The `curl` command sends a request to the Go web service via the Envoy proxy, demonstrating Envoy's load balancing and routing capabilities.
+### Scale Services
+
+```bash
+# Add more instances
+docker-compose up --scale web-service-1=2 -d
+```
+
+### Test Failure Scenarios
+
+```bash
+# Stop one service to test health checks
+docker-compose stop web-service-1
+
+# Requests will be routed to healthy instances
+curl http://localhost:10000
+```
+
+### Monitor with Envoy Admin
+
+- **Stats**: http://localhost:9901/stats
+- **Clusters**: http://localhost:9901/clusters
+- **Server Info**: http://localhost:9901/server_info
+- **Config Dump**: http://localhost:9901/config_dump
+
+## Development
+
+### Build Individual Services
+
+```bash
+# Go service
+cd go-web-service
+docker build -t web-service .
+
+# Envoy proxy
+cd envoy-proxy
+docker build -t envoy-proxy .
+```
+
+### Run Tests
+
+```bash
+# Test Go service directly
+cd go-web-service
+go test ./...
+```
+
+## Production Considerations
+
+This demo includes production-ready patterns:
+- ✅ Graceful shutdown handlers
+- ✅ Health check endpoints
+- ✅ Structured logging
+- ✅ Resource limits
+- ✅ Non-root containers
+- ✅ Multi-stage builds
+- ✅ Retry and circuit breaking policies
+
+For production deployment, consider adding:
+- TLS/mTLS for service-to-service communication
+- Distributed tracing (OpenTelemetry)
+- Metrics collection (Prometheus)
+- Service mesh integration (Istio/Linkerd)
+
+## Troubleshooting
+
+**Services won't start:**
+- Check Docker daemon is running
+- Ensure ports 10000 and 9901 are available
+
+**Health checks failing:**
+- Check service logs: `docker-compose logs web-service-1`
+- Verify `/health` endpoint: `docker exec <container> wget -O- localhost:1337/health`
+
+**No load balancing:**
+- Verify all services are healthy: `curl localhost:9901/clusters`
+- Check Envoy logs: `docker-compose logs envoy-proxy`
+
+## References
+
+- [Envoy Documentation](https://www.envoyproxy.io/docs)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [Go HTTP Server Best Practices](https://golang.org/doc/articles/wiki/)

@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+*_test.go
+testdata/
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+web-service
