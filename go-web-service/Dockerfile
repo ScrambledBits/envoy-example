@@ -24,19 +24,18 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     main.go
 
 # Runtime stage
-FROM scratch
+FROM alpine:latest
 
-# Copy CA certificates for HTTPS requests
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+# Install runtime dependencies for health checks
+RUN apk add --no-cache ca-certificates wget tzdata && \
+    addgroup -g 65534 -S nonroot && \
+    adduser -u 65534 -S nonroot -G nonroot
 
 # Copy the binary from builder
 COPY --from=builder /build/web-service /web-service
 
 # Use non-root user for security
-USER 65534:65534
+USER nonroot:nonroot
 
 EXPOSE 1337
 

@@ -246,9 +246,27 @@ Hello, World! From web-service-2
 Hello, World! From web-service-3
 ```
 
-**Check health endpoint:**
+**Check health endpoints:**
 ```bash
+# Combined health check (liveness + readiness)
 curl http://localhost:10000/health
+
+# Liveness probe (is the service running?)
+curl http://localhost:10000/live
+
+# Readiness probe (is the service ready for traffic?)
+curl http://localhost:10000/ready
+```
+
+The `/ready` endpoint returns a JSON response with detailed health information:
+```json
+{
+  "status": "ready",
+  "hostname": "web-service-1",
+  "checks": {
+    "service": "ok"
+  }
+}
 ```
 
 **View Envoy admin interface:**
@@ -329,6 +347,26 @@ graph TD
 
 The service can be configured via environment variables:
 - `PORT`: Server port (default: 1337)
+
+**Health Check Endpoints:**
+
+The service provides three health check endpoints:
+
+1. **`/health`** - Combined health check (liveness + readiness)
+   - Returns 200 OK if service is ready
+   - Returns 503 Service Unavailable if not ready
+   - Used by Docker Compose health checks
+
+2. **`/live`** - Liveness probe
+   - Indicates if the service is running
+   - Always returns 200 OK if the service can respond
+   - Kubernetes uses this to restart crashed containers
+
+3. **`/ready`** - Readiness probe
+   - Indicates if the service is ready to accept traffic
+   - Returns JSON with detailed health status
+   - Kubernetes uses this to add/remove pods from load balancers
+   - Service is marked as not ready during startup and shutdown
 
 See `go-web-service/main.go` for the complete implementation.
 

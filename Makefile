@@ -1,5 +1,8 @@
 .PHONY: help build up down logs restart test clean health stats
 
+# Docker Compose command (use v2 syntax)
+DOCKER_COMPOSE := docker compose
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
@@ -8,20 +11,20 @@ help: ## Show this help message
 
 build: ## Build all Docker images
 	@echo "Building Docker images..."
-	docker-compose build
+	$(DOCKER_COMPOSE) build
 
 up: ## Start all services
 	@echo "Starting services..."
-	docker-compose up -d
+	$(DOCKER_COMPOSE) up -d
 	@echo "Services started. Access the application at http://localhost:10000"
 	@echo "Admin interface available at http://localhost:9901"
 
 down: ## Stop all services
 	@echo "Stopping services..."
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
 logs: ## Show logs from all services
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 restart: down up ## Restart all services
 
@@ -36,10 +39,16 @@ test: ## Run basic tests
 	@echo "Testing health endpoint..."
 	@curl -s http://localhost:10000/health
 	@echo ""
+	@echo "Testing liveness endpoint..."
+	@curl -s http://localhost:10000/live
+	@echo ""
+	@echo "Testing readiness endpoint..."
+	@curl -s http://localhost:10000/ready | python3 -m json.tool 2>/dev/null || curl -s http://localhost:10000/ready
+	@echo ""
 
 health: ## Check health of all services
 	@echo "Checking Docker Compose services..."
-	@docker-compose ps
+	@$(DOCKER_COMPOSE) ps
 	@echo ""
 	@echo "Checking Envoy cluster health..."
 	@curl -s http://localhost:9901/clusters | grep -E "health_flags|hostname" || echo "Envoy not responding"
@@ -49,7 +58,7 @@ stats: ## Show Envoy statistics
 
 clean: down ## Stop services and remove volumes
 	@echo "Cleaning up..."
-	docker-compose down -v
+	$(DOCKER_COMPOSE) down -v
 	docker system prune -f
 
 dev: ## Start services and follow logs
@@ -59,7 +68,7 @@ dev: ## Start services and follow logs
 
 validate: ## Validate configuration files
 	@echo "Validating docker-compose.yml..."
-	@docker-compose config > /dev/null && echo "✓ docker-compose.yml is valid"
+	@$(DOCKER_COMPOSE) config > /dev/null && echo "✓ docker-compose.yml is valid"
 	@echo "Validating Envoy configuration..."
 	@docker run --rm -v $(PWD)/envoy-proxy/envoy.yaml:/etc/envoy/envoy.yaml envoyproxy/envoy:v1.31-latest --mode validate -c /etc/envoy/envoy.yaml
 
